@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import koreanize_matplotlib
 
 st.set_page_config(layout="wide")
 st.title("📊 지역별 범죄 통계 시각화 대시보드")
