@@ -2,8 +2,19 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import koreanize_matplotlib
+import platform
+import matplotlib.font_manager as fm
 
+# 한글 폰트 설정
+if platform.system() == 'Windows':
+    plt.rcParams['font.family'] = 'Malgun Gothic'
+elif platform.system() == 'Darwin':  # macOS
+    plt.rcParams['font.family'] = 'AppleGothic'
+else:  # Linux, Streamlit Cloud 등
+    plt.rcParams['font.family'] = 'NanumGothic'
+plt.rcParams['axes.unicode_minus'] = False
+
+# Streamlit 설정
 st.set_page_config(layout="wide")
 st.title("📊 지역별 범죄 통계 시각화 대시보드")
 
@@ -17,7 +28,7 @@ def load_data():
 
 df = load_data()
 
-# Sidebar filters
+# Sidebar
 with st.sidebar:
     st.header("🔍 필터")
     selected_main = st.selectbox("대분류 선택", sorted(df['범죄대분류'].unique()))
@@ -29,11 +40,10 @@ with st.sidebar:
 
 filtered_df = df[(df['범죄대분류'] == selected_main) & (df['지역'].isin(selected_regions))]
 
-# 중분류 기준 집계
+# 중분류 시각화
 middle_summary = filtered_df.groupby('범죄중분류')['발생건수'].sum().sort_values(ascending=False)
 
-# 중분류 시각화
-st.subheader(f"✅ '{selected_main}' 대분류 내 중분류별 발생건수")
+st.subheader(f"✅ '{selected_main}' 대분류 내 중분류별 발생 건수")
 
 if middle_summary.empty:
     st.warning("해당 대분류에 대한 중분류 데이터가 선택한 지역에서 존재하지 않습니다.")
@@ -48,44 +58,13 @@ else:
     ax.set_ylabel("범죄 중분류")
     st.pyplot(fig)
 
-# 도 단위로 지역 그룹핑
+# 도 단위로 묶기
 def extract_do(region):
-    if region.startswith("서울"):
-        return "서울"
-    elif region.startswith("부산"):
-        return "부산"
-    elif region.startswith("대구"):
-        return "대구"
-    elif region.startswith("인천"):
-        return "인천"
-    elif region.startswith("광주"):
-        return "광주"
-    elif region.startswith("대전"):
-        return "대전"
-    elif region.startswith("울산"):
-        return "울산"
-    elif region.startswith("세종"):
-        return "세종"
-    elif region.startswith("경기"):
-        return "경기"
-    elif region.startswith("강원"):
-        return "강원"
-    elif region.startswith("충북"):
-        return "충북"
-    elif region.startswith("충남"):
-        return "충남"
-    elif region.startswith("전북"):
-        return "전북"
-    elif region.startswith("전남"):
-        return "전남"
-    elif region.startswith("경북"):
-        return "경북"
-    elif region.startswith("경남"):
-        return "경남"
-    elif region.startswith("제주"):
-        return "제주"
-    else:
-        return "기타"
+    for prefix in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
+                   "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]:
+        if region.startswith(prefix):
+            return prefix
+    return "기타"
 
 filtered_df['도'] = filtered_df['지역'].apply(extract_do)
 do_summary = filtered_df.groupby('도')['발생건수'].sum()
