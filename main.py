@@ -3,18 +3,20 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import platform
+import os
 import matplotlib.font_manager as fm
 
-# 한글 폰트 설정
-if platform.system() == 'Windows':
-    plt.rcParams['font.family'] = 'Malgun Gothic'
-elif platform.system() == 'Darwin':  # macOS
-    plt.rcParams['font.family'] = 'AppleGothic'
-else:  # Linux, Streamlit Cloud 등
-    plt.rcParams['font.family'] = 'NanumGothic'
-plt.rcParams['axes.unicode_minus'] = False
+# -----------------------
+# 한글 폰트 설정 (NanumGothic.ttf 직접 등록)
+# -----------------------
+font_path = os.path.join("fonts", "NanumGothic.ttf")
+font_name = fm.FontProperties(fname=font_path).get_name()
+plt.rcParams["font.family"] = font_name
+plt.rcParams["axes.unicode_minus"] = False
 
+# -----------------------
 # Streamlit 설정
+# -----------------------
 st.set_page_config(layout="wide")
 st.title("📊 지역별 범죄 통계 시각화 대시보드")
 
@@ -28,7 +30,9 @@ def load_data():
 
 df = load_data()
 
-# Sidebar
+# -----------------------
+# 사이드바 필터
+# -----------------------
 with st.sidebar:
     st.header("🔍 필터")
     selected_main = st.selectbox("대분류 선택", sorted(df['범죄대분류'].unique()))
@@ -40,7 +44,9 @@ with st.sidebar:
 
 filtered_df = df[(df['범죄대분류'] == selected_main) & (df['지역'].isin(selected_regions))]
 
+# -----------------------
 # 중분류 시각화
+# -----------------------
 middle_summary = filtered_df.groupby('범죄중분류')['발생건수'].sum().sort_values(ascending=False)
 
 st.subheader(f"✅ '{selected_main}' 대분류 내 중분류별 발생 건수")
@@ -58,7 +64,9 @@ else:
     ax.set_ylabel("범죄 중분류")
     st.pyplot(fig)
 
+# -----------------------
 # 도 단위로 묶기
+# -----------------------
 def extract_do(region):
     for prefix in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
                    "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]:
