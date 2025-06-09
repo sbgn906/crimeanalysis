@@ -2,22 +2,11 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import matplotlib.font_manager as fm
-import platform
-
-# 한글 폰트 설정 (운영체제별)
-if platform.system() == 'Windows':
-    plt.rcParams['font.family'] = 'Malgun Gothic'
-elif platform.system() == 'Darwin':  # macOS
-    plt.rcParams['font.family'] = 'AppleGothic'
-else:
-    plt.rcParams['font.family'] = 'NanumGothic'
-plt.rcParams['axes.unicode_minus'] = False
+import koreanize_matplotlib
 
 st.set_page_config(layout="wide")
 st.title("📊 지역별 범죄 통계 시각화 대시보드")
 
-# 데이터 불러오기
 @st.cache_data
 def load_data():
     df = pd.read_csv("경찰청_범죄 발생 지역별 통계_20231231.csv", encoding='cp949')
@@ -28,7 +17,7 @@ def load_data():
 
 df = load_data()
 
-# 사이드바 필터
+# Sidebar filters
 with st.sidebar:
     st.header("🔍 필터")
     selected_main = st.selectbox("대분류 선택", sorted(df['범죄대분류'].unique()))
@@ -38,16 +27,20 @@ with st.sidebar:
         default=sorted(df['지역'].unique())
     )
 
-# 데이터 필터링
 filtered_df = df[(df['범죄대분류'] == selected_main) & (df['지역'].isin(selected_regions))]
 
 # 중분류 기준 집계
 middle_summary = filtered_df.groupby('범죄중분류')['발생건수'].sum().sort_values(ascending=False)
 
-# 시각화
+# 중분류 시각화
 st.subheader(f"✅ '{selected_main}' 대분류 내 중분류별 발생건수")
+
 if middle_summary.empty:
     st.warning("해당 대분류에 대한 중분류 데이터가 선택한 지역에서 존재하지 않습니다.")
+elif len(middle_summary) == 1:
+    label = middle_summary.index[0]
+    value = middle_summary.iloc[0]
+    st.info(f"🔹 중분류: **{label}** / 발생건수: **{value:,}건**")
 else:
     fig, ax = plt.subplots(figsize=(12, 6))
     sns.barplot(x=middle_summary.values, y=middle_summary.index, ax=ax, palette="viridis")
@@ -56,7 +49,6 @@ else:
     st.pyplot(fig)
 
 # 도 단위로 지역 그룹핑
-st.subheader("📍 선택한 대분류의 도 단위 발생 비율 (원형 차트)")
 def extract_do(region):
     if region.startswith("서울"):
         return "서울"
@@ -98,8 +90,12 @@ def extract_do(region):
 filtered_df['도'] = filtered_df['지역'].apply(extract_do)
 do_summary = filtered_df.groupby('도')['발생건수'].sum()
 
-fig3, ax3 = plt.subplots(figsize=(8, 8))
-colors = sns.color_palette("pastel")[0:len(do_summary)]
-ax3.pie(do_summary.values, labels=do_summary.index, autopct='%1.1f%%', colors=colors, startangle=140)
-ax3.axis('equal')
-st.pyplot(fig3)
+st.subheader("📍 선택한 대분류의 도 단위 발생 비율 (원형 차트)")
+if do_summary.empty:
+    st.warning("선택한 지역에는 해당 대분류의 데이터가 없습니다.")
+else:
+    fig2, ax2 = plt.subplots(figsize=(8, 8))
+    colors = sns.color_palette("pastel")[0:len(do_summary)]
+    ax2.pie(do_summary.values, labels=do_summary.index, autopct='%1.1f%%', colors=colors, startangle=140)
+    ax2.axis('equal')
+    st.pyplot(fig2)
