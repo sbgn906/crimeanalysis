@@ -6,6 +6,13 @@ import platform
 import os
 import matplotlib.font_manager as fm
 
+# -----------------------
+# 한글 폰트 설정 (NanumGothic.ttf 직접 등록)
+# -----------------------
+font_path = os.path.join("fonts", "NanumGothic.ttf")
+font_name = fm.FontProperties(fname=font_path).get_name()
+plt.rcParams["font.family"] = font_name
+plt.rcParams["axes.unicode_minus"] = False
 
 # -----------------------
 # Streamlit 설정
