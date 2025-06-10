@@ -17,7 +17,7 @@ else:
 # ✅ 데이터 로딩
 @st.cache_data
 def load_data():
-    df = pd.read_csv("crime_data.csv")  # 파일명은 사용자 파일명에 따라 수정
+    df = pd.read_csv("경찰청_범죄 발생 지역별 통계_20231231.csv")  # 파일명은 사용자 파일명에 따라 수정
     return df
 
 df = load_data()
