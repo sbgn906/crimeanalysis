@@ -6,7 +6,7 @@ import plotly.express as px
 # Streamlit 설정
 # -----------------------
 st.set_page_config(layout="wide")
-st.title("📊 지역별 범죄 통계 시각화 대시보드 (Plotly 버전)")
+st.title("📊 지역별 범죄 통계 시각화 대시보드")
 
 @st.cache_data
 def load_data():
