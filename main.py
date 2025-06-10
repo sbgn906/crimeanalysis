@@ -1,24 +1,12 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import platform
-import os
-import matplotlib.font_manager as fm
-
-# -----------------------
-# 한글 폰트 설정 (NanumGothic.ttf 직접 등록)
-# -----------------------
-font_path = os.path.join("fonts", "NanumGothic.ttf")
-font_name = fm.FontProperties(fname=font_path).get_name()
-plt.rcParams["font.family"] = font_name
-plt.rcParams["axes.unicode_minus"] = False
+import plotly.express as px
 
 # -----------------------
 # Streamlit 설정
 # -----------------------
 st.set_page_config(layout="wide")
-st.title("📊 지역별 범죄 통계 시각화 대시보드")
+st.title("📊 지역별 범죄 통계 시각화 대시보드 (Plotly 버전)")
 
 @st.cache_data
 def load_data():
@@ -58,11 +46,16 @@ elif len(middle_summary) == 1:
     value = middle_summary.iloc[0]
     st.info(f"🔹 중분류: **{label}** / 발생건수: **{value:,}건**")
 else:
-    fig, ax = plt.subplots(figsize=(12, 6))
-    sns.barplot(x=middle_summary.values, y=middle_summary.index, ax=ax, palette="viridis")
-    ax.set_xlabel("발생 건수")
-    ax.set_ylabel("범죄 중분류")
-    st.pyplot(fig)
+    fig = px.bar(
+        middle_summary.reset_index(),
+        x='발생건수',
+        y='범죄중분류',
+        orientation='h',
+        color='범죄중분류',
+        title=f"{selected_main} 중분류별 발생건수",
+        height=500
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------
 # 도 단위로 묶기
@@ -78,11 +71,15 @@ filtered_df['도'] = filtered_df['지역'].apply(extract_do)
 do_summary = filtered_df.groupby('도')['발생건수'].sum()
 
 st.subheader("📍 선택한 대분류의 도 단위 발생 비율 (원형 차트)")
+
 if do_summary.empty:
     st.warning("선택한 지역에는 해당 대분류의 데이터가 없습니다.")
 else:
-    fig2, ax2 = plt.subplots(figsize=(8, 8))
-    colors = sns.color_palette("pastel")[0:len(do_summary)]
-    ax2.pie(do_summary.values, labels=do_summary.index, autopct='%1.1f%%', colors=colors, startangle=140)
-    ax2.axis('equal')
-    st.pyplot(fig2)
+    pie_fig = px.pie(
+        do_summary.reset_index(),
+        values='발생건수',
+        names='도',
+        title=f"{selected_main} 도별 발생 비율",
+        height=500
+    )
+    st.plotly_chart(pie_fig, use_container_width=True)
