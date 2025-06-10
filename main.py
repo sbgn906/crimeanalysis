@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 st.set_page_config(layout="wide")
-st.title("📊 지역별 범죄 통계 시각화 대시보드 (Plotly 기반)")
+st.title("📊 지역별 범죄 통계 시각화 대시보드")
 
 # -----------------------
 # 데이터 로딩 및 전처리
@@ -102,6 +102,6 @@ else:
         values='발생건수',
         names=name_col,
         title=pie_title,
-        height=500
+        height=1000
     )
     st.plotly_chart(pie_fig, use_container_width=True)
