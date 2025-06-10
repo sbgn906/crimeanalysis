@@ -119,7 +119,7 @@ else:
         values='발생건수',
         names=name_col,
         title=pie_title,
-        height=500
+        height=750
     )
     st.plotly_chart(pie_fig, use_container_width=True)
 
