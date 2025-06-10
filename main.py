@@ -1,107 +1,99 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from matplotlib import font_manager as fm
+import os
 
-st.set_page_config(layout="wide")
-st.title("📊 지역별 범죄 통계 시각화 대시보드")
+# ✅ 한글 폰트 설정
+font_path = "./fonts/NanumGothic.ttf"
+if os.path.exists(font_path):
+    fm.fontManager.addfont(font_path)
+    plt_font = fm.FontProperties(fname=font_path).get_name()
+    px.defaults.template = "plotly_white"
+    px.defaults.font = plt_font
+else:
+    st.warning("⚠️ 폰트 파일이 누락되어 기본 글꼴로 대체됩니다.")
 
-# -----------------------
-# 데이터 로딩 및 전처리
-# -----------------------
+# ✅ 데이터 로딩
 @st.cache_data
 def load_data():
-    df = pd.read_csv("경찰청_범죄 발생 지역별 통계_20231231.csv", encoding='cp949')
-    df = df.melt(id_vars=['범죄대분류', '범죄중분류'], var_name='지역', value_name='발생건수')
-    df = df.dropna(subset=['발생건수'])
-    df['발생건수'] = pd.to_numeric(df['발생건수'], errors='coerce').fillna(0).astype(int)
-
-    def extract_do(region):
-        for prefix in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
-                       "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]:
-            if region.startswith(prefix):
-                return prefix
-        return "기타"
-    
-    df['도'] = df['지역'].apply(extract_do)
+    df = pd.read_csv("crime_data.csv")  # 파일명은 사용자 파일명에 따라 수정
     return df
 
 df = load_data()
 
-# -----------------------
-# 사이드바 필터
-# -----------------------
-with st.sidebar:
-    st.header("🔍 필터")
+# ✅ 전처리: 시/도 및 시/군/구 추출
+df["시도"] = df["지역"].str.extract(r"(^[^ ]+)")
+df["시군구"] = df["지역"].str.extract(r"(?:^[^ ]+ )?(.*)")
 
-    selected_main = st.selectbox("대분류 선택", sorted(df['범죄대분류'].unique()))
+# ✅ 사이드바 필터
+st.sidebar.title("📊 필터")
+crime_main = st.sidebar.selectbox("범죄 대분류 선택", sorted(df["대분류"].unique()))
+selected_province = st.sidebar.selectbox("지역 선택 (도/광역시)", ["전체"] + sorted(df["시도"].unique()))
 
-    all_do = ['전체'] + sorted(df['도'].unique())
-    selected_do = st.selectbox("광역단체(도/광역시) 선택", all_do)
+# ✅ 필터링
+filtered_df = df[df["대분류"] == crime_main]
+if selected_province != "전체":
+    filtered_df = filtered_df[filtered_df["시도"] == selected_province]
 
-    if selected_do == '전체':
-        subregions = sorted(df['지역'].unique())
-    else:
-        subregions = sorted(df[df['도'] == selected_do]['지역'].unique())
-    
-    selected_subregions = st.multiselect("세부 지역 선택", subregions, default=subregions)
+# ✅ 중분류별 발생 건수 그래프
+sub_counts = filtered_df["중분류"].value_counts().reset_index()
+sub_counts.columns = ["중분류", "건수"]
 
-# -----------------------
-# 필터 적용
-# -----------------------
-filtered_df = df[
-    (df['범죄대분류'] == selected_main) &
-    (df['지역'].isin(selected_subregions))
-]
+st.markdown(f"### ✅ '{crime_main}' 대분류 내 중분류별 발생 건수")
+bar_fig = px.bar(
+    sub_counts,
+    x="건수",
+    y="중분류",
+    orientation="h",
+    color="중분류",
+    color_discrete_sequence=px.colors.qualitative.Set2,
+    text="건수"
+)
+bar_fig.update_layout(showlegend=False)
+st.plotly_chart(bar_fig, use_container_width=True)
 
-# -----------------------
-# 중분류별 막대 그래프
-# -----------------------
-middle_summary = filtered_df.groupby('범죄중분류')['발생건수'].sum().sort_values(ascending=False)
+# ✅ 지역별 비율 시각화 (상위 10개 + 기타)
+region_counts = (
+    filtered_df["지역"].value_counts()
+    .reset_index()
+    .rename(columns={"index": "지역", "지역": "건수"})
+)
 
-st.subheader(f"✅ '{selected_main}' 대분류 내 중분류별 발생 건수")
+st.markdown("### 📍 선택한 지역의 발생 비율 (원형 차트)")
 
-if middle_summary.empty:
-    st.warning("해당 대분류에 대한 중분류 데이터가 선택한 지역에서 존재하지 않습니다.")
-elif len(middle_summary) == 1:
-    label = middle_summary.index[0]
-    value = middle_summary.iloc[0]
-    st.info(f"🔹 중분류: **{label}** / 발생건수: **{value:,}건**")
+if len(region_counts) > 10:
+    top10 = region_counts.iloc[:10]
+    other_sum = region_counts.iloc[10:]["건수"].sum()
+    pie_df = pd.concat([
+        top10,
+        pd.DataFrame([{"지역": "기타", "건수": other_sum}])
+    ])
 else:
-    fig = px.bar(
-        middle_summary.reset_index(),
-        x='발생건수',
-        y='범죄중분류',
-        orientation='h',
-        color='범죄중분류',
-        title=f"{selected_main} 중분류별 발생건수",
-        height=500
+    pie_df = region_counts
+
+pie_fig = px.pie(
+    pie_df,
+    names="지역",
+    values="건수",
+    color_discrete_sequence=px.colors.qualitative.Set3,
+    title=f"{crime_main} 지역별 발생 비율"
+)
+st.plotly_chart(pie_fig, use_container_width=True)
+
+# ✅ 기타 클릭 시 나머지 지역 테이블 표시
+if "기타" in pie_df["지역"].values:
+    if st.checkbox("기타 지역 상세 보기"):
+        st.markdown("#### 기타 지역 상세 정보")
+        st.dataframe(region_counts.iloc[10:].reset_index(drop=True))
+
+# ✅ 부가 설명
+with st.expander("ℹ️ 그래프 해설 및 참고사항"):
+    st.markdown(
+        """
+        - 상단의 그래프는 대분류 범죄 안의 중분류별 발생 건수를 보여줍니다.
+        - 원형 차트는 상위 10개 지역 비율만을 시각화하며, 나머지는 '기타'로 묶였습니다.
+        - '기타 지역 상세 보기'를 클릭하면 나머지 지역 정보를 표로 확인할 수 있습니다.
+        - 선택한 지역이 좁을수록 보다 상세한 지역 분석이 가능합니다.
+        """
     )
-    st.plotly_chart(fig, use_container_width=True)
-
-# -----------------------
-# 지역별 원형 차트
-# -----------------------
-st.subheader("📍 선택한 지역의 발생 비율 (원형 차트)")
-
-if filtered_df.empty:
-    st.warning("선택한 조건에 해당하는 지역 데이터가 없습니다.")
-else:
-    if selected_do == '전체' or len(set(filtered_df['도'])) > 1:
-        # 전체 선택 또는 복수 도 선택 → 도 기준 원형 차트
-        region_summary = filtered_df.groupby('도')['발생건수'].sum().reset_index()
-        pie_title = f"{selected_main} 도별 발생 비율"
-        name_col = '도'
-    else:
-        # 하나의 도 선택 → 지역 기준 원형 차트
-        region_summary = filtered_df.groupby('지역')['발생건수'].sum().reset_index()
-        pie_title = f"{selected_main} 지역(시/군/구)별 발생 비율"
-        name_col = '지역'
-
-    pie_fig = px.pie(
-        region_summary,
-        values='발생건수',
-        names=name_col,
-        title=pie_title,
-        height=750
-    )
-    st.plotly_chart(pie_fig, use_container_width=True)
