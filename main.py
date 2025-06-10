@@ -3,18 +3,31 @@ import pandas as pd
 import plotly.express as px
 
 # -----------------------
-# Streamlit 설정
+# Streamlit 기본 설정
 # -----------------------
 st.set_page_config(layout="wide")
-st.title("📊 지역별 범죄 통계 시각화 대시보드")
+st.title("📊 지역별 범죄 통계 시각화 대시보드 (Plotly 기반)")
 
+# -----------------------
+# 데이터 로딩 및 전처리
+# -----------------------
 @st.cache_data
 def load_data():
     df = pd.read_csv("경찰청_범죄 발생 지역별 통계_20231231.csv", encoding='cp949')
-    df_melted = df.melt(id_vars=['범죄대분류', '범죄중분류'], var_name='지역', value_name='발생건수')
-    df_melted = df_melted.dropna(subset=['발생건수'])
-    df_melted['발생건수'] = pd.to_numeric(df_melted['발생건수'], errors='coerce').fillna(0).astype(int)
-    return df_melted
+    df = df.melt(id_vars=['범죄대분류', '범죄중분류'], var_name='지역', value_name='발생건수')
+    df = df.dropna(subset=['발생건수'])
+    df['발생건수'] = pd.to_numeric(df['발생건수'], errors='coerce').fillna(0).astype(int)
+    
+    # 도/광역시 정보 파생
+    def extract_do(region):
+        for prefix in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
+                       "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]:
+            if region.startswith(prefix):
+                return prefix
+        return "기타"
+    
+    df['도'] = df['지역'].apply(extract_do)
+    return df
 
 df = load_data()
 
@@ -23,17 +36,24 @@ df = load_data()
 # -----------------------
 with st.sidebar:
     st.header("🔍 필터")
+    
     selected_main = st.selectbox("대분류 선택", sorted(df['범죄대분류'].unique()))
-    selected_regions = st.multiselect(
-        "지역 선택",
-        sorted(df['지역'].unique()),
-        default=sorted(df['지역'].unique())
-    )
-
-filtered_df = df[(df['범죄대분류'] == selected_main) & (df['지역'].isin(selected_regions))]
+    
+    selected_do = st.selectbox("광역단체(도/광역시) 선택", sorted(df['도'].unique()))
+    
+    subregions = sorted(df[df['도'] == selected_do]['지역'].unique())
+    selected_subregions = st.multiselect("세부 지역 선택", subregions, default=subregions)
 
 # -----------------------
-# 중분류 시각화
+# 필터 반영
+# -----------------------
+filtered_df = df[
+    (df['범죄대분류'] == selected_main) &
+    (df['지역'].isin(selected_subregions))
+]
+
+# -----------------------
+# 중분류별 막대 그래프
 # -----------------------
 middle_summary = filtered_df.groupby('범죄중분류')['발생건수'].sum().sort_values(ascending=False)
 
@@ -58,35 +78,20 @@ else:
     st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------
-# 지역 분류 전처리
+# 도 단위 원형 차트
 # -----------------------
-def extract_do(region):
-    for prefix in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
-                   "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]:
-        if region.startswith(prefix):
-            return prefix
-    return "기타"
+do_summary = filtered_df.groupby('도')['발생건수'].sum()
 
-df['도'] = df['지역'].apply(extract_do)
+st.subheader("📍 선택한 대분류의 도 단위 발생 비율 (원형 차트)")
 
-# -----------------------
-# 사이드바 필터
-# -----------------------
-with st.sidebar:
-    st.header("🔍 필터")
-    
-    selected_main = st.selectbox("대분류 선택", sorted(df['범죄대분류'].unique()))
-    
-    selected_do = st.selectbox("광역단체(도/광역시) 선택", sorted(df['도'].unique()))
-    
-    # 선택된 도에 포함된 지역 필터링
-    subregions = sorted(df[df['도'] == selected_do]['지역'].unique())
-    selected_subregions = st.multiselect("세부 지역 선택", subregions, default=subregions)
-
-# -----------------------
-# 필터 반영
-# -----------------------
-filtered_df = df[
-    (df['범죄대분류'] == selected_main) &
-    (df['지역'].isin(selected_subregions))
-]
+if do_summary.empty:
+    st.warning("선택한 지역에는 해당 대분류의 데이터가 없습니다.")
+else:
+    pie_fig = px.pie(
+        do_summary.reset_index(),
+        values='발생건수',
+        names='도',
+        title=f"{selected_main} 도별 발생 비율",
+        height=500
+    )
+    st.plotly_chart(pie_fig, use_container_width=True)
