@@ -58,7 +58,7 @@ else:
     st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------
-# 도 단위로 묶기
+# 지역 분류 전처리
 # -----------------------
 def extract_do(region):
     for prefix in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
@@ -67,19 +67,26 @@ def extract_do(region):
             return prefix
     return "기타"
 
-filtered_df['도'] = filtered_df['지역'].apply(extract_do)
-do_summary = filtered_df.groupby('도')['발생건수'].sum()
+df['도'] = df['지역'].apply(extract_do)
 
-st.subheader("📍 선택한 대분류의 도 단위 발생 비율 (원형 차트)")
+# -----------------------
+# 사이드바 필터
+# -----------------------
+with st.sidebar:
+    st.header("🔍 필터")
+    
+    selected_main = st.selectbox("대분류 선택", sorted(df['범죄대분류'].unique()))
+    
+    selected_do = st.selectbox("광역단체(도/광역시) 선택", sorted(df['도'].unique()))
+    
+    # 선택된 도에 포함된 지역 필터링
+    subregions = sorted(df[df['도'] == selected_do]['지역'].unique())
+    selected_subregions = st.multiselect("세부 지역 선택", subregions, default=subregions)
 
-if do_summary.empty:
-    st.warning("선택한 지역에는 해당 대분류의 데이터가 없습니다.")
-else:
-    pie_fig = px.pie(
-        do_summary.reset_index(),
-        values='발생건수',
-        names='도',
-        title=f"{selected_main} 도별 발생 비율",
-        height=500
-    )
-    st.plotly_chart(pie_fig, use_container_width=True)
+# -----------------------
+# 필터 반영
+# -----------------------
+filtered_df = df[
+    (df['범죄대분류'] == selected_main) &
+    (df['지역'].isin(selected_subregions))
+]
