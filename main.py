@@ -13,7 +13,7 @@ def load_data():
     df = pd.read_csv("경찰청_범죄 발생 지역별 통계_20231231.csv", encoding='cp949')
     df = df.melt(id_vars=['범죄대분류', '범죄중분류'], var_name='지역', value_name='발생건수')
     df = df.dropna(subset=['발생건수'])
-    df['발생건수'] = pd.to_numeric(df['발건수'], errors='coerce').fillna(0).astype(int)
+    df['발생건수'] = pd.to_numeric(df['발생건수'], errors='coerce').fillna(0).astype(int)
 
     def extract_do(region):
         for prefix in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
