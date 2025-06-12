@@ -40,19 +40,26 @@ with st.sidebar:
 
     st.markdown("**세부 지역 선택**")
 
+    # 전체 선택/해제 토글
+    toggle_all = st.checkbox("✅ 모든 지역 선택", value=True, key="toggle_all")
+
     if selected_do == '전체':
         # 도 단위 체크박스 목록
         selected_dos = []
         for do_name in sorted(df['도'].unique()):
-            if st.checkbox(f"{do_name}", key=f"do_{do_name}", value=True):
+            if st.checkbox(f"{do_name}", key=f"do_{do_name}", value=toggle_all):
                 selected_dos.append(do_name)
         selected_subregions = df[df['도'].isin(selected_dos)]['지역'].unique().tolist()
     else:
         # 지역 단위 체크박스 목록
+        all_regions = sorted(df[df['도'] == selected_do]['지역'].unique())
         selected_subregions = []
-        for region in sorted(df[df['도'] == selected_do]['지역'].unique()):
-            if st.checkbox(f"{region}", key=f"region_{region}", value=True):
+        for region in all_regions:
+            if st.checkbox(f"{region}", key=f"region_{region}", value=toggle_all):
                 selected_subregions.append(region)
+
+    st.markdown("---")
+    st.markdown(f"🔎 **선택된 지역 수**: `{len(selected_subregions)}개`")
 
 # -----------------------
 # 필터 적용
