@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 st.set_page_config(layout="wide")
-st.title("📊 지역별 범죄 통계 시각화 대시보드 (Plotly 기반)")
+st.title("📊 지역별 범죄 통계 시각화 대시보드")
 
 # -----------------------
 # 데이터 로딩 및 전처리
@@ -41,7 +41,7 @@ with st.sidebar:
     st.markdown("**세부 지역 선택**")
 
     # 전체 선택/해제 토글
-    toggle_all = st.checkbox("✅ 모든 지역 선택", value=True, key="toggle_all")
+    toggle_all = st.checkbox("모든 지역 선택", value=True, key="toggle_all")
 
     if selected_do == '전체':
         # 도 단위 체크박스 목록
@@ -97,7 +97,7 @@ else:
 # -----------------------
 # 지역별 원형 차트
 # -----------------------
-st.subheader("📍 선택한 지역의 발생 비율 (원형 차트)")
+st.subheader("📍 선택한 광역단체/지역의 상위 10개지 발생 비율")
 
 if filtered_df.empty:
     st.warning("선택한 조건에 해당하는 지역 데이터가 없습니다.")
@@ -135,7 +135,7 @@ else:
         values='발생건수',
         names=name_col,
         title=pie_title,
-        height=500
+        height=600
     )
     st.plotly_chart(pie_fig, use_container_width=True)
 
