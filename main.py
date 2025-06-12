@@ -98,24 +98,29 @@ else:
 # -----------------------
 # 🚨 이상치 탐지
 # -----------------------
-if detect_outliers and not filtered_df.empty:
-    st.subheader("🚨 이상치 탐지 결과 (중분류/지역 기준)")
-
-    pivot = filtered_df.pivot_table(index='지역', columns='범죄중분류', values='발생건수', aggfunc='sum', fill_value=0)
-
-    if len(pivot) < 5:
-        st.info("이상치 탐지를 위해선 최소 5개 이상의 지역 데이터가 필요합니다.")
+if detect_outliers:
+    if filtered_df.empty:
+        st.warning("⚠️ 선택된 지역에 해당하는 데이터가 없습니다. 이상치 탐지를 실행할 수 없습니다.")
     else:
-        model = IsolationForest(contamination=0.1, random_state=42)
-        pivot['이상치'] = model.fit_predict(pivot)
+        st.subheader("🚨 이상치 탐지 결과 (중분류/지역 기준)")
 
-        outliers = pivot[pivot['이상치'] == -1].drop(columns='이상치')
+        pivot = filtered_df.pivot_table(index='지역', columns='범죄중분류', values='발생건수', aggfunc='sum', fill_value=0)
 
-        if outliers.empty:
-            st.success("이상치로 탐지된 지역이 없습니다.")
+        if len(pivot) < 5:
+            st.info("ℹ️ 이상치 탐지를 위해선 최소 5개 이상의 지역 데이터가 필요합니다.")
         else:
-            st.warning(f"아래는 이상치로 탐지된 지역입니다. (총 {len(outliers)}곳)")
-            st.dataframe(outliers.style.highlight_max(axis=1, color='salmon'))
+            model = IsolationForest(contamination=0.1, random_state=42)
+            pivot['이상치'] = model.fit_predict(pivot)
+
+            outliers = pivot[pivot['이상치'] == -1].drop(columns='이상치')
+
+            if outliers.empty:
+                st.success("✅ 이상치로 탐지된 지역이 없습니다. 전체 데이터를 참고하세요.")
+                st.dataframe(pivot.drop(columns='이상치').style.background_gradient(cmap='Greens'))
+            else:
+                st.warning(f"🚨 이상치로 탐지된 지역입니다. (총 {len(outliers)}곳)")
+                st.dataframe(outliers.style.highlight_max(axis=1, color='salmon'))
+
 
 # -----------------------
 # 지역별 원형 차트
