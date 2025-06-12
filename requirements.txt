@@ -1,4 +1,4 @@
 streamlit
 pandas
 plotly
-sklearn.ensemble
+scikit-learn
