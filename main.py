@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from sklearn.ensemble import IsolationForest  # ✅ 추가
 
 st.set_page_config(layout="wide")
 st.title("📊 지역별 범죄 통계 시각화 대시보드")
@@ -40,18 +41,15 @@ with st.sidebar:
 
     st.markdown("**세부 지역 선택**")
 
-    # 전체 선택/해제 토글
     toggle_all = st.checkbox("모든 지역 선택", value=True, key="toggle_all")
 
     if selected_do == '전체':
-        # 도 단위 체크박스 목록
         selected_dos = []
         for do_name in sorted(df['도'].unique()):
             if st.checkbox(f"{do_name}", key=f"do_{do_name}", value=toggle_all):
                 selected_dos.append(do_name)
         selected_subregions = df[df['도'].isin(selected_dos)]['지역'].unique().tolist()
     else:
-        # 지역 단위 체크박스 목록
         all_regions = sorted(df[df['도'] == selected_do]['지역'].unique())
         selected_subregions = []
         for region in all_regions:
@@ -60,6 +58,9 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(f"🔎 **선택된 지역 수**: `{len(selected_subregions)}개`")
+
+    # ✅ 이상치 탐지 옵션
+    detect_outliers = st.checkbox("⚠️ 이상치 탐지 활성화", value=False)
 
 # -----------------------
 # 필터 적용
@@ -95,6 +96,28 @@ else:
     st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------
+# 🚨 이상치 탐지
+# -----------------------
+if detect_outliers and not filtered_df.empty:
+    st.subheader("🚨 이상치 탐지 결과 (중분류/지역 기준)")
+
+    pivot = filtered_df.pivot_table(index='지역', columns='범죄중분류', values='발생건수', aggfunc='sum', fill_value=0)
+
+    if len(pivot) < 5:
+        st.info("이상치 탐지를 위해선 최소 5개 이상의 지역 데이터가 필요합니다.")
+    else:
+        model = IsolationForest(contamination=0.1, random_state=42)
+        pivot['이상치'] = model.fit_predict(pivot)
+
+        outliers = pivot[pivot['이상치'] == -1].drop(columns='이상치')
+
+        if outliers.empty:
+            st.success("이상치로 탐지된 지역이 없습니다.")
+        else:
+            st.warning(f"아래는 이상치로 탐지된 지역입니다. (총 {len(outliers)}곳)")
+            st.dataframe(outliers.style.highlight_max(axis=1, color='salmon'))
+
+# -----------------------
 # 지역별 원형 차트
 # -----------------------
 st.subheader("📍 선택한 광역단체/지역의 상위 10개지 발생 비율")
@@ -103,25 +126,21 @@ if filtered_df.empty:
     st.warning("선택한 조건에 해당하는 지역 데이터가 없습니다.")
 else:
     if selected_do == '전체' or len(set(filtered_df['도'])) > 1:
-        # 전체 선택 또는 복수 도 선택 → 도 기준 원형 차트
         region_summary = filtered_df.groupby('도')['발생건수'].sum().reset_index()
         pie_title = f"{selected_main} 도별 발생 비율"
         name_col = '도'
     else:
-        # 하나의 도 선택 → 지역 기준 원형 차트
         region_summary = filtered_df.groupby('지역')['발생건수'].sum().reset_index()
         pie_title = f"{selected_main} 지역(시/군/구)별 발생 비율"
         name_col = '지역'
 
-    # 상위 10개 + 기타 처리
     region_summary = region_summary.sort_values('발생건수', ascending=False).reset_index(drop=True)
     top_n = 10
     if len(region_summary) > top_n:
         top_regions = region_summary.iloc[:top_n]
         other_regions = region_summary.iloc[top_n:]
         other_sum = other_regions['발생건수'].sum()
-        
-        # top_regions + 기타 row 추가
+
         pie_data = pd.concat([
             top_regions,
             pd.DataFrame({name_col: ['기타'], '발생건수': [other_sum]})
@@ -129,7 +148,6 @@ else:
     else:
         pie_data = region_summary.copy()
 
-    # 원형 차트
     pie_fig = px.pie(
         pie_data,
         values='발생건수',
@@ -139,7 +157,6 @@ else:
     )
     st.plotly_chart(pie_fig, use_container_width=True)
 
-    # 기타 항목 클릭 시 표 출력
     if '기타' in pie_data[name_col].values and len(region_summary) > top_n:
         with st.expander("📋 기타 항목 세부 정보 보기"):
             st.write(other_regions.rename(columns={name_col: '지역명'}).reset_index(drop=True))
