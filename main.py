@@ -44,6 +44,10 @@ with st.sidebar:
 
     st.markdown("**세부 지역 선택**")
 
+    st.markdown("---")
+    st.markdown(f"🔎 **선택된 지역 수**: `{len(selected_subregions)}개`")
+
+
     toggle_all = st.checkbox("모든 지역 선택", value=True, key="toggle_all")
 
     if selected_do == '전체':
@@ -58,9 +62,6 @@ with st.sidebar:
         for region in all_regions:
             if st.checkbox(f"{region}", key=f"region_{region}", value=toggle_all):
                 selected_subregions.append(region)
-
-    st.markdown("---")
-    st.markdown(f"🔎 **선택된 지역 수**: `{len(selected_subregions)}개`")
 
 
 # -----------------------
