@@ -39,6 +39,9 @@ with st.sidebar:
     all_do = ['전체'] + sorted(df['도'].unique())
     selected_do = st.selectbox("광역단체(도/광역시) 선택", all_do)
 
+    # ✅ 이상치 탐지 옵션
+    detect_outliers = st.checkbox("⚠️ 이상치 탐지 활성화", value=False)
+
     st.markdown("**세부 지역 선택**")
 
     toggle_all = st.checkbox("모든 지역 선택", value=True, key="toggle_all")
@@ -59,8 +62,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(f"🔎 **선택된 지역 수**: `{len(selected_subregions)}개`")
 
-    # ✅ 이상치 탐지 옵션
-    detect_outliers = st.checkbox("⚠️ 이상치 탐지 활성화", value=False)
 
 # -----------------------
 # 필터 적용
