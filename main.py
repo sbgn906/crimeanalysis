@@ -41,7 +41,7 @@ with st.sidebar:
     st.markdown("**세부 지역 선택**")
 
     # 전체 선택/해제 토글
-    toggle_all = st.checkbox("✅ 모든 지역 선택", value=True, key="toggle_all")
+    toggle_all = st.checkbox("모든 지역 선택", value=True, key="toggle_all")
 
     if selected_do == '전체':
         # 도 단위 체크박스 목록
