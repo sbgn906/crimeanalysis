@@ -38,12 +38,21 @@ with st.sidebar:
     all_do = ['전체'] + sorted(df['도'].unique())
     selected_do = st.selectbox("광역단체(도/광역시) 선택", all_do)
 
+    st.markdown("**세부 지역 선택**")
+
     if selected_do == '전체':
-        subregions = sorted(df['지역'].unique())
+        # 도 단위 체크박스 목록
+        selected_dos = []
+        for do_name in sorted(df['도'].unique()):
+            if st.checkbox(f"{do_name}", key=f"do_{do_name}", value=True):
+                selected_dos.append(do_name)
+        selected_subregions = df[df['도'].isin(selected_dos)]['지역'].unique().tolist()
     else:
-        subregions = sorted(df[df['도'] == selected_do]['지역'].unique())
-    
-    selected_subregions = st.multiselect("세부 지역 선택", subregions, default=subregions)
+        # 지역 단위 체크박스 목록
+        selected_subregions = []
+        for region in sorted(df[df['도'] == selected_do]['지역'].unique()):
+            if st.checkbox(f"{region}", key=f"region_{region}", value=True):
+                selected_subregions.append(region)
 
 # -----------------------
 # 필터 적용
